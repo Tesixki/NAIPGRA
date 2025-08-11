@@ -1,3 +1,4 @@
 .env
 venv
 .gradio/certificate.pem
+__pycache__/
