@@ -9,16 +9,19 @@ GradioのWebUIでユーザーが希望するイラストを生成するチャッ
 ### 🔄 生成フロー
 
 1. **ユーザー入力** → ユーザーが希望するイラストの詳細をチャットで入力
-2. **最新のGPT-5処理** → LangChainのGPT-5でDanbooruタグ形式に変換・補完
-3. **NovelAI生成** → NovelAI v4.5 Curated で高品質画像生成（832x1216解像度）
-4. **結果表示** → Gradioチャットに画像とログを表示
+2. **GPT-4o処理** → LangChainのGPT-4oで構造化プロンプト（JSON形式）に変換・補完
+3. **NovelAI v4.5生成** → キャラクター座標対応で高品質画像生成（832x1216解像度）
+4. **結果表示** → Gradioチャットに画像とダウンロードボタンを表示
 
 ## ✨ 特徴
 
-- 🤖 **GPT-5活用**: 自然な日本語からDanbooruタグへの高精度変換
+- 🤖 **GPT-4o活用**: 自然な日本語から構造化プロンプト（JSON）への高精度変換
+- 🎯 **キャラクター座標対応**: 1-6キャラクター、A1-E5座標指定可能
 - 🎨 **NovelAI v4.5 Curated**: 最新モデルによる高品質アニメ風イラスト生成
-- 🌐 **WebUI**: 美しいGradioインターフェース
+- 🌐 **美しいWebUI**: 中央揃え・レスポンシブ対応のGradioインターフェース
+- 📥 **ダウンロード機能**: 生成画像の簡単ダウンロード
 - 📱 **リアルタイム**: 処理状況をリアルタイムで表示
+- 🔧 **エラーハンドリング**: ポート競合時の自動ポート検索
 
 ## 🚀 セットアップ
 
@@ -58,8 +61,8 @@ python main.py
 ```
 NAIPGRA/
 ├── main.py            # メインアプリケーション（Gradio WebUI）
-├── chatGPT.py         # GPT-5によるプロンプト変換
-├── novelai.py         # NovelAI API画像生成
+├── chatGPT.py         # GPT-4oによる構造化プロンプト変換
+├── novelai.py         # NovelAI v4.5 API画像生成（キャラクター座標対応）
 ├── requirements.txt   # 依存パッケージ
 ├── .env               # 環境変数（作成が必要）
 ├── .gitignore         # Git除外設定
@@ -70,27 +73,58 @@ NAIPGRA/
 
 - **フロントエンド**: Gradio WebUI
 - **AI処理**: 
-  - OpenAI GPT-5 (LangChain経由)
-  - NovelAI v4.5 Curated
+  - OpenAI GPT-4o (LangChain経由)
+  - NovelAI v4.5 Curated (novelai-api経由)
 - **画像処理**: PIL (Pillow)
 - **並行処理**: asyncio, aiohttp
 - **環境管理**: python-dotenv
 
 ## 💡 使用例
 
-### 入力例
+### 📝 入力例
 ```
 猫の女の子が花畑で笑っている
 ```
 
-### GPT-4o変換例
-```
-1girl, cat_ears, cat_tail, blonde_hair, blue_eyes, smile, happy, flower_field, 
-outdoor, spring, cherry_blossom, cute, kawaii, anime_style, masterpiece, best_quality
+### 🤖 GPT-4o構造化出力例
+```json
+{
+  "characterCount": 1,
+  "prompt": "flower_field, outdoor, flowers, nature, sunny, best_quality, masterpiece",
+  "characterPrompts": [
+    {
+      "prompt": "1girl, catgirl, cute, smiling, floral_background, standing, full_body, animal_ears, tail",
+      "position": "C3"
+    }
+  ]
+}
 ```
 
-### 出力
-832x1216の高品質アニメ風イラスト
+### 🎨 複数キャラクター例
+```
+入力: ぐらちゃんとるしあちゃんが一緒にいる
+```
+```json
+{
+  "characterCount": 2,
+  "prompt": "2girls, indoors, virtual_youtuber, hololive, best_quality, masterpiece",
+  "characterPrompts": [
+    {
+      "prompt": "gawr_gura, shark_tail, hoodie, blue_eyes, smiling, full_body",
+      "position": "B2"
+    },
+    {
+      "prompt": "uruha_rushia, green_hair, twintails, red_eyes, gothic_lolita, full_body, looking_at_viewer",
+      "position": "D2"
+    }
+  ]
+}
+```
+
+### 📱 出力
+- **解像度**: 832x1216の高品質アニメ風イラスト
+- **キャラクター配置**: 指定座標に正確配置
+- **ダウンロード**: ワンクリックで画像保存
 
 ## ⚙️ 設定
 
@@ -98,6 +132,8 @@ outdoor, spring, cherry_blossom, cute, kawaii, anime_style, masterpiece, best_qu
 - **モデル**: NovelAI v4.5c (Anime_v45_Curated)
 - **解像度**: 832x1216（縦長・スマホ壁紙に最適）
 - **品質**: 高品質設定（steps=28, scale=5.0）
+- **キャラクター座標**: A1-E5グリッド対応（A1=左上、E5=右下、C3=中央）
+- **同時生成**: 最大6キャラクター対応
 
 ## 🔧 トラブルシューティング
 
@@ -108,7 +144,16 @@ outdoor, spring, cherry_blossom, cute, kawaii, anime_style, masterpiece, best_qu
    - OpenAI/NovelAIアカウントの有効性を確認
 
 2. **ポート競合**
-   - `.env`で`GRADIO_PORT`を変更（例：7861）
+   - 自動的に利用可能ポートを検索（7860→7861→7862...）
+   - 手動設定: `.env`で`GRADIO_PORT`を変更
+
+3. **LangChain警告**
+   - `BaseChatModel.__call__`の非推奨警告は動作に影響なし
+   - 将来のアップデートで修正予定
+
+4. **画像生成失敗**
+   - NovelAIアカウントクレジット残高を確認
+   - ネットワーク接続を確認
 
 ## 📝 ライセンス
 
@@ -117,7 +162,7 @@ outdoor, spring, cherry_blossom, cute, kawaii, anime_style, masterpiece, best_qu
 ## 🙏 謝辞
 
 - [NovelAI](https://novelai.net/) - 高品質画像生成API
-- [OpenAI](https://openai.com/) - GPT-5言語モデル  
+- [OpenAI](https://openai.com/) - GPT-4o言語モデル  
 - [Gradio](https://gradio.app/) - WebUIフレームワーク
 - [LangChain](https://langchain.com/) - AI統合フレームワーク
 
