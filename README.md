@@ -46,14 +46,11 @@ OPENAI_API_KEY=your_openai_api_key_here
 NOVELAI_USERNAME=your_novelai_username_here
 NOVELAI_PASSWORD=your_novelai_password_here
 
-# 拡張プロンプト設定（オプション）
-# メインプロンプトに常に追加される内容
+# 拡張プロンプト設定
 NOVELAI_EXTEND_PROMPT=ultra_detailed, extremely_detailed, photorealistic
-
-# キャラクタープロンプトに常に追加される内容
 NOVELAI_EXTEND_CHARACTER_PROMPT=perfect_face, detailed_eyes, high_quality_skin
 
-# Gradio設定（オプション）
+# Gradio設定
 GRADIO_PORT=7860
 GRADIO_HOST=127.0.0.1
 ```
@@ -96,7 +93,7 @@ NAIPGRA/
 猫の女の子が花畑で笑っている
 ```
 
-### 🤖 GPT-4o構造化出力例
+### 🤖 GPT-5構造化出力例
 ```json
 {
   "characterCount": 1,
@@ -201,7 +198,7 @@ NOVELAI_EXTEND_CHARACTER_PROMPT=perfect_face, detailed_eyes
 ## 🙏 謝辞
 
 - [NovelAI](https://novelai.net/) - 高品質画像生成API
-- [OpenAI](https://openai.com/) - GPT-4o言語モデル  
+- [OpenAI](https://openai.com/) - GPT-5言語モデル  
 - [Gradio](https://gradio.app/) - WebUIフレームワーク
 - [LangChain](https://langchain.com/) - AI統合フレームワーク
 
