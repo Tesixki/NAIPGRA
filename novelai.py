@@ -81,7 +81,7 @@ class NovelAIGenerator:
                 print("NovelAI APIログイン完了")
 
                 print("画像生成開始... (832x1216)")
-                print(f"モデル: NovelAI v4.5c (Anime_v45_Curated)")
+                print("モデル: NovelAI v4.5c (Anime_v45_Curated)")
                 
                 # プリセットを作成
                 preset = ImagePreset.from_default_config(model)
@@ -128,11 +128,10 @@ class NovelAIGenerator:
         try:
             # イベントループの適切な処理
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 print("既存のイベントループで実行中...")
                 # 既存ループがある場合は新しいスレッドで実行
                 import concurrent.futures
-                import threading
                 
                 def run_in_thread():
                     new_loop = asyncio.new_event_loop()
