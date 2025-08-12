@@ -38,6 +38,37 @@ class IllustrationChatService:
 
         print("サービス初期化完了")
 
+    def save_generated_image(self, image_data: bytes) -> str:
+        """
+        生成された画像をoutputsディレクトリに保存
+
+        Args:
+            image_data (bytes): 画像のバイナリデータ
+
+        Returns:
+            str: 保存されたファイルのパス
+        """
+        # outputsディレクトリを作成（存在しない場合）
+        outputs_dir = "outputs"
+        if not os.path.exists(outputs_dir):
+            os.makedirs(outputs_dir)
+            print(f"📁 {outputs_dir}ディレクトリを作成しました")
+
+        # ファイル名を生成（タイムスタンプ付き）
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"generated_image_{timestamp}.png"
+        filepath = os.path.join(outputs_dir, filename)
+
+        # 画像を保存
+        try:
+            with open(filepath, "wb") as f:
+                f.write(image_data)
+            print(f"💾 画像を保存しました: {filepath}")
+            return filepath
+        except Exception as e:
+            print(f"❌ 画像保存エラー: {e}")
+            return ""
+
     def process_user_request(self, user_input: str, chat_history: list):
         """
         ユーザーのリクエストを処理してイラストを生成
@@ -89,6 +120,9 @@ class IllustrationChatService:
                     # PIL Imageに変換
                     image = self.novelai.image_to_pil(image_data)
 
+                    # outputsディレクトリに画像を保存
+                    saved_path = self.save_generated_image(image_data)
+
                     # 成功メッセージ
                     character_info = ""
                     for i, char in enumerate(prompt_data.get("characterPrompts", [])):
@@ -98,6 +132,8 @@ class IllustrationChatService:
                         )
                         character_info += f"**キャラクター{i + 1}**{position_text}: {char.get('prompt', '')}\n"
 
+                    save_info = f"\n**保存先:** {saved_path}" if saved_path else ""
+
                     success_message = f"""
 ✅ **イラスト生成完了！**
 
@@ -106,7 +142,7 @@ class IllustrationChatService:
 **背景・環境:**
 {prompt_data.get("prompt", "")}
 
-{character_info}
+{character_info}{save_info}
 
 **生成時刻:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """

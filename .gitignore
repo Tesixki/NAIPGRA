@@ -2,3 +2,4 @@
 venv
 .gradio/certificate.pem
 __pycache__/
+outputs/
