@@ -1,5 +1,5 @@
 """
-NovelAI-APIライブラリを使用して画像を生成するモジュール（公式ドキュメントに基づく正しい実装）
+NovelAI-APIライブラリを使用してキャラクター座標対応画像を生成するモジュール（v4.5対応）
 """
 
 import os
@@ -34,10 +34,10 @@ class NovelAIGenerator:
 
         print("NovelAI生成器を初期化完了")
 
-    async def _generate_image_async(self, prompt: str, negative_prompt: str = "", **kwargs) -> Optional[bytes]:
+    async def _generate_image_async(self, prompt_data: dict, negative_prompt: str = "", **kwargs) -> Optional[bytes]:
         """
-        公式ドキュメントに基づく正しい画像生成実装
-        参考: https://aedial.github.io/novelai-api/
+        NovelAI v4.5 キャラクター座標対応画像生成
+        参考: https://github.com/Aedial/novelai-api/blob/main/example/generate_image_v4.py
         """
         try:
             # NovelAI v4.5c - 要件定義書に基づく正しいモデル名
@@ -50,6 +50,29 @@ class NovelAIGenerator:
             )
             full_negative_prompt = f"{default_negative}, {negative_prompt}" if negative_prompt else default_negative
 
+            # プロンプトデータから情報を抽出
+            main_prompt = prompt_data.get("prompt", "masterpiece, best_quality")
+            character_prompts = prompt_data.get("characterPrompts", [])
+            character_count = prompt_data.get("characterCount", 1)
+            
+            print(f"キャラクター数: {character_count}")
+            print(f"メインプロンプト: {main_prompt}")
+            
+            # キャラクタープロンプトをv4形式に変換
+            v4_character_prompts = []
+            for i, char_data in enumerate(character_prompts):
+                char_prompt = char_data.get("prompt", "1girl")
+                position = char_data.get("position")  # Noneの場合もある
+                
+                char_entry = {"prompt": char_prompt}
+                if position:  # positionが指定されている場合のみ追加
+                    char_entry["position"] = position
+                    print(f"キャラクター{i+1}: {char_prompt} (位置: {position})")
+                else:
+                    print(f"キャラクター{i+1}: {char_prompt} (位置指定なし)")
+                
+                v4_character_prompts.append(char_entry)
+
             async with aiohttp.ClientSession() as session:
                 api = NovelAIAPI(session)
                 
@@ -57,11 +80,11 @@ class NovelAIGenerator:
                 await api.high_level.login(self.username, self.password)
                 print("NovelAI APIログイン完了")
 
-                # 公式ドキュメントに基づく正しいプリセット作成方法
-                print("プリセットを作成中...")
-                preset = ImagePreset.from_default_config(model)
+                print("画像生成開始... (832x1216)")
+                print(f"モデル: NovelAI v4.5c (Anime_v45_Curated)")
                 
-                # 要件定義書の設定を適用
+                # プリセットを作成
+                preset = ImagePreset.from_default_config(model)
                 preset.width = 832
                 preset.height = 1216
                 preset.steps = 28
@@ -73,15 +96,23 @@ class NovelAIGenerator:
                 preset.sm = False
                 preset.sm_dyn = False
 
-                print(f"画像生成開始... ({preset.width}x{preset.height})")
-                print(f"モデル: NovelAI v4.5c (Anime_v45_Curated)")
-                print(f"プロンプト: {prompt[:100]}...")
+                # v4形式: キャラクタープロンプトをpreset.charactersに設定
+                if len(v4_character_prompts) > 0:
+                    print("キャラクタープロンプトをpreset.charactersに設定中...")
+                    # 公式サンプルに基づき、preset.charactersに設定
+                    preset.characters = v4_character_prompts
+                    print(f"設定されたキャラクター数: {len(v4_character_prompts)}")
+                    for i, char in enumerate(v4_character_prompts):
+                        print(f"  キャラクター{i+1}: {char}")
                 
-                # 公式ドキュメントの例に基づく正しい呼び出し方法
-                # async for _, img in api.high_level.generate_image(prompt, model, preset):
-                async for _, image_bytes in api.high_level.generate_image(prompt, model, preset):
-                    print("画像生成完了")
-                    return image_bytes
+                # 画像生成実行
+                async for _, image_bytes in api.high_level.generate_image(
+                    prompt=main_prompt,
+                    model=model,
+                    preset=preset
+                ):
+                        print("画像生成完了")
+                        return image_bytes
 
                 print("画像生成に失敗しました")
                 return None
@@ -90,7 +121,7 @@ class NovelAIGenerator:
             print(f"画像生成エラー: {e}")
             return None
 
-    def generate_image(self, prompt: str, negative_prompt: str = "", **kwargs) -> Optional[bytes]:
+    def generate_image(self, prompt_data: dict, negative_prompt: str = "", **kwargs) -> Optional[bytes]:
         """
         同期インターフェース - 内部で非同期処理を実行
         """
@@ -108,7 +139,7 @@ class NovelAIGenerator:
                     asyncio.set_event_loop(new_loop)
                     try:
                         return new_loop.run_until_complete(
-                            self._generate_image_async(prompt, negative_prompt, **kwargs)
+                            self._generate_image_async(prompt_data, negative_prompt, **kwargs)
                         )
                     finally:
                         new_loop.close()
@@ -121,7 +152,7 @@ class NovelAIGenerator:
                 # イベントループが存在しない場合は通常の方法で実行
                 print("新しいイベントループで実行中...")
                 return asyncio.run(
-                    self._generate_image_async(prompt, negative_prompt, **kwargs)
+                    self._generate_image_async(prompt_data, negative_prompt, **kwargs)
                 )
                 
         except Exception as e:
@@ -152,13 +183,28 @@ def test_novelai():
     """テスト用関数"""
     try:
         generator = NovelAIGenerator()
-        test_prompt = "1girl, blonde_hair, blue_eyes, smile, school_uniform, cherry_blossom, outdoors, masterpiece, best_quality"
+        
+        # テスト用の構造化プロンプト
+        test_prompt_data = {
+            "characterCount": 2,
+            "prompt": "library, bookshelf, indoor, warm_lighting, masterpiece, best_quality",
+            "characterPrompts": [
+                {
+                    "prompt": "1girl, blonde_hair, blue_eyes, reading, sitting, upper_body, school_uniform, gentle_smile",
+                    "position": "B2"
+                },
+                {
+                    "prompt": "1girl, brown_hair, green_eyes, standing, full_body, casual_clothes, happy",
+                    "position": "D4"
+                }
+            ]
+        }
         
         print("テスト画像生成開始...")
-        image_data = generator.generate_image(test_prompt)
+        image_data = generator.generate_image(test_prompt_data)
         
         if image_data:
-            success = generator.save_image(image_data, "test_output.png")
+            success = generator.save_image(image_data, "test_v4_output.png")
             if success:
                 print("テスト画像生成・保存完了")
                 return image_data

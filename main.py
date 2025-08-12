@@ -5,6 +5,8 @@ Gradio WebUIを使ったイラスト生成チャットサービス
 import os
 import gradio as gr
 import asyncio
+import tempfile
+import uuid
 from datetime import datetime
 from PIL import Image
 import io
@@ -64,29 +66,49 @@ class IllustrationChatService:
             yield chat_history, "", None
             
             if self.chatgpt:
-                enhanced_description = self.chatgpt.enhance_illustration_prompt(user_input)
+                prompt_data = self.chatgpt.enhance_illustration_prompt(user_input)
             else:
-                enhanced_description = user_input
+                # フォールバック用の構造化データ（位置指定なし）
+                prompt_data = {
+                    "characterCount": 1,
+                    "prompt": "masterpiece, best_quality, high_resolution",
+                    "characterPrompts": [
+                        {
+                            "prompt": user_input
+                            # positionは任意項目なので省略
+                        }
+                    ]
+                }
             
-            # ステップ2: NovelAI APIで画像生成
-            status_message = "🎨 NovelAI APIで画像生成中..."
+            # ステップ2: NovelAI v4.5でキャラクター座標対応画像生成
+            status_message = "🎨 NovelAI v4.5で画像生成中..."
             chat_history[-1]["content"] = status_message
             yield chat_history, "", None
             
             if self.novelai:
-                # ChatGPTの出力を直接NovelAIに渡す
-                image_data = self.novelai.generate_image(enhanced_description)
+                # 構造化プロンプトデータをNovelAIに渡す
+                image_data = self.novelai.generate_image(prompt_data)
                 
                 if image_data:
                     # PIL Imageに変換
                     image = self.novelai.image_to_pil(image_data)
                     
                     # 成功メッセージ
+                    character_info = ""
+                    for i, char in enumerate(prompt_data.get("characterPrompts", [])):
+                        position = char.get('position')
+                        position_text = f" (位置: {position})" if position else " (位置指定なし)"
+                        character_info += f"**キャラクター{i+1}**{position_text}: {char.get('prompt', '')}\n"
+                    
                     success_message = f"""
 ✅ **イラスト生成完了！**
 
-**補完された説明:**
-{enhanced_description}
+**キャラクター数:** {prompt_data.get('characterCount', 1)}
+
+**背景・環境:**
+{prompt_data.get('prompt', '')}
+
+{character_info}
 
 **生成時刻:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
@@ -117,55 +139,96 @@ def create_gradio_interface():
     custom_css = """
     .gradio-container {
         max-width: 1200px !important;
+        margin: 0 auto !important;
+        padding: 20px !important;
     }
+    
     .chat-container {
         height: 600px !important;
     }
+    
+    /* メインコンテナを中央配置 */
+    .main {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    
+    /* タイトルを中央揃え */
+    .markdown h1, .markdown h2 {
+        text-align: center !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* レスポンシブデザイン */
+    @media (max-width: 768px) {
+        .gradio-container {
+            max-width: 95% !important;
+            padding: 10px !important;
+        }
+    }
+    
+    /* コンポーネント間の余白調整 */
+    .block {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* ダウンロードボタンのスタイル */
+    .download-btn {
+        width: 100% !important;
+        margin-top: 10px !important;
+    }
     """
     
-    with gr.Blocks(css=custom_css, title="イラスト生成チャットサービス") as demo:
-        gr.Markdown("# 🎨 イラスト生成チャットサービス")
-        gr.Markdown("希望するイラストの内容を入力してください。AIが詳細な説明に変換し、高品質なイラストを生成します。")
+    with gr.Blocks(css=custom_css, title="イラスト生成チャットサービス", theme=gr.themes.Soft()) as demo:
+        # ヘッダーセクション
+        with gr.Column(elem_classes="main"):
+            gr.Markdown("# 🎨 イラスト生成チャットサービス")
+            gr.Markdown("希望するイラストの内容を入力してください。AIが詳細な説明に変換し、高品質なイラストを生成します。")
         
-        with gr.Row():
-            with gr.Column(scale=2):
-                chatbot = gr.Chatbot(
-                    label="チャット",
-                    height=600,
-                    show_copy_button=True,
-                    type="messages"
-                )
-                
-                with gr.Row():
-                    user_input = gr.Textbox(
-                        placeholder="例: 金髪の女の子が桜の木の下で笑っている",
-                        label="イラストの希望を入力",
-                        lines=2,
-                        scale=4
+        # メインコンテンツを中央配置のコンテナで囲む
+        with gr.Column(elem_classes="main"):
+            with gr.Row():
+                with gr.Column(scale=2):
+                    chatbot = gr.Chatbot(
+                        label="チャット",
+                        height=600,
+                        show_copy_button=True,
+                        type="messages"
                     )
-                    submit_btn = gr.Button("生成", variant="primary", scale=1)
+                    
+                    with gr.Row():
+                        user_input = gr.Textbox(
+                            placeholder="例: 金髪の女の子が桜の木の下で笑っている",
+                            label="イラストの希望を入力",
+                            lines=2,
+                            scale=4
+                        )
+                        submit_btn = gr.Button("生成", variant="primary", scale=1)
+                    
+                    gr.Examples(
+                        examples=[
+                            "可愛い猫の女の子が花畑で笑っている",
+                            "金髪で青い目の魔法使いが本を読んでいる",
+                            "制服を着た女子高生が教室で勉強している",
+                            "和服を着た美少女が竹林を歩いている"
+                        ],
+                        inputs=user_input
+                    )
                 
-                gr.Examples(
-                    examples=[
-                        "可愛い猫の女の子が花畑で笑っている",
-                        "金髪で青い目の魔法使いが本を読んでいる",
-                        "制服を着た女子高生が教室で勉強している",
-                        "和服を着た美少女が竹林を歩いている"
-                    ],
-                    inputs=user_input
-                )
-            
-            with gr.Column(scale=1):
-                generated_image = gr.Image(
-                    label="生成されたイラスト",
-                    type="pil",
-                    height=600
-                )
-                
-                download_btn = gr.DownloadButton(
-                    label="画像をダウンロード",
-                    visible=False
-                )
+                with gr.Column(scale=1):
+                    generated_image = gr.Image(
+                        label="生成されたイラスト",
+                        type="pil",
+                        height=600
+                    )
+                    
+                    download_btn = gr.DownloadButton(
+                        label="📥 画像をダウンロード",
+                        visible=False,
+                        variant="secondary"
+                    )
         
         # イベントハンドラー
         def submit_and_generate(user_input, chat_history):
@@ -176,61 +239,135 @@ def create_gradio_interface():
             return [], ""
         
         def on_image_change(image):
+            """画像が変更されたときのハンドラー"""
             if image is not None:
-                return gr.DownloadButton(visible=True)
-            return gr.DownloadButton(visible=False)
+                # 画像ファイルを一時保存してダウンロード用のパスを生成
+                import tempfile
+                import uuid
+                
+                # 一意なファイル名を生成
+                filename = f"generated_image_{uuid.uuid4().hex[:8]}.png"
+                filepath = os.path.join(tempfile.gettempdir(), filename)
+                
+                # PIL画像を保存
+                image.save(filepath, "PNG")
+                
+                return gr.DownloadButton(
+                    label="📥 画像をダウンロード",
+                    value=filepath,
+                    visible=True
+                )
+            else:
+                return gr.DownloadButton(
+                    label="📥 画像をダウンロード", 
+                    visible=False
+                                    )
         
-        # イベントバインディング
-        submit_event = submit_btn.click(
-            fn=submit_and_generate,
+        # クリアボタンを中央配置
+        with gr.Row():
+            clear_btn = gr.Button("🗑️ チャットをクリア", variant="secondary", scale=1)
+        
+        # イベントハンドラー設定
+        submit_btn.click(
+            submit_and_generate,
             inputs=[user_input, chatbot],
-            outputs=[chatbot, user_input, generated_image],
-            show_progress=True
-        )
-        
-        user_input.submit(
-            fn=submit_and_generate,
-            inputs=[user_input, chatbot],
-            outputs=[chatbot, user_input, generated_image],
-            show_progress=True
-        )
-        
-        generated_image.change(
-            fn=on_image_change,
+            outputs=[chatbot, user_input, generated_image]
+        ).then(
+            on_image_change,
             inputs=[generated_image],
             outputs=[download_btn]
         )
         
-        # クリアボタン
-        clear_btn = gr.Button("チャットをクリア", variant="secondary")
+        user_input.submit(
+            submit_and_generate,
+            inputs=[user_input, chatbot],
+            outputs=[chatbot, user_input, generated_image]
+        ).then(
+            on_image_change,
+            inputs=[generated_image],
+            outputs=[download_btn]
+        )
+        
         clear_btn.click(
-            fn=clear_chat,
+            clear_chat,
+            inputs=[],
             outputs=[chatbot, user_input]
+        ).then(
+            lambda: gr.DownloadButton(label="📥 画像をダウンロード", visible=False),
+            inputs=[],
+            outputs=[download_btn]
         )
     
     return demo
+
+def find_available_port(start_port: int = 7860, max_attempts: int = 10) -> int:
+    """利用可能なポートを見つける"""
+    import socket
+    
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', port))
+                return port
+        except OSError:
+            continue
+    
+    raise OSError(f"ポート {start_port} から {start_port + max_attempts - 1} の範囲で利用可能なポートが見つかりませんでした")
 
 def main():
     """メイン関数"""
     print("🚀 イラスト生成チャットサービスを起動中...")
     
     # 環境変数から設定を取得
-    port = int(os.getenv("GRADIO_PORT", 7860))
+    requested_port = int(os.getenv("GRADIO_PORT", 7860))
     host = os.getenv("GRADIO_HOST", "127.0.0.1")
     
-    # Gradio WebUIを作成・起動
+    # Gradio WebUIを作成
     demo = create_gradio_interface()
     
-    print(f"📱 WebUIが起動しました: http://{host}:{port}")
-    print("🎯 ブラウザでアクセスして、イラスト生成をお楽しみください！")
-    
-    demo.launch(
-        server_name=host,
-        server_port=port,
-        share=False,  # 公開する場合はTrueに変更
-        show_error=True,
-        favicon_path=None
-    )
+    # ポート競合時のエラーハンドリング
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            # 最初は指定されたポートを試す
+            if attempt == 0:
+                port = requested_port
+            else:
+                # ポート競合の場合、利用可能なポートを検索
+                print(f"⚠️  ポート {requested_port} が使用中です。別のポートを検索中...")
+                port = find_available_port(requested_port + 1)
+            
+            print(f"📱 WebUIを起動中: http://{host}:{port}")
+            print("🎯 ブラウザでアクセスして、イラスト生成をお楽しみください！")
+            
+            demo.launch(
+                server_name=host,
+                server_port=port,
+                share=False,  # 公開する場合はTrueに変更
+                show_error=True,
+                favicon_path=None,
+                prevent_thread_lock=False
+            )
+            break  # 成功したらループを抜ける
+            
+        except OSError as e:
+            if "Cannot find empty port" in str(e) or "Address already in use" in str(e):
+                if attempt < max_retries - 1:
+                    print(f"❌ ポート {port} でエラー: {e}")
+                    print(f"🔄 再試行中... ({attempt + 1}/{max_retries})")
+                    continue
+                else:
+                    print(f"❌ 利用可能なポートが見つかりませんでした。以下を確認してください:")
+                    print(f"   1. 他のGradioアプリケーションが起動していないか")
+                    print(f"   2. ファイアウォール設定")
+                    print(f"   3. .envでGRADIO_PORTを別の値に設定")
+                    raise
+            else:
+                print(f"❌ 予期しないエラー: {e}")
+                raise
+        except Exception as e:
+            print(f"❌ WebUI起動エラー: {e}")
+            raise
 
 if __name__ == "__main__":
     main()
