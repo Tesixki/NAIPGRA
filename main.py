@@ -82,10 +82,12 @@ class IllustrationChatService:
         """
         if not user_input.strip():
             # 空の入力の場合はエラーメッセージを表示
-            chat_history.append({
-                "role": "assistant", 
-                "content": "⚠️ イラストの内容を入力してください。\n\n例: 「猫の女の子が花畑で笑っている」"
-            })
+            chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": "⚠️ イラストの内容を入力してください。\n\n例: 「猫の女の子が花畑で笑っている」",
+                }
+            )
             yield chat_history, "", None
             return
 
@@ -127,7 +129,7 @@ class IllustrationChatService:
                     image = self.novelai.image_to_pil(image_data)
 
                     # outputsディレクトリに画像を保存
-                    saved_path = self.save_generated_image(image_data)
+                    self.save_generated_image(image_data)
 
                     # 成功メッセージ
                     character_info = ""
