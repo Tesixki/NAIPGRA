@@ -11,13 +11,13 @@ GradioのWebUIでユーザーが希望するイラストを生成するチャッ
 ### 🔄 生成フロー
 
 1. **ユーザー入力** → ユーザーが希望するイラストの詳細をチャットで入力
-2. **GPT-4o処理** → LangChainのGPT-4oで構造化プロンプト（JSON形式）に変換・補完
+2. **最新のGPT-5処理** → LangChainのGPT-5で構造化プロンプト（JSON形式）に変換・補完
 3. **NovelAI v4.5生成** → キャラクター座標対応で高品質画像生成（832x1216解像度）
 4. **結果表示** → Gradioチャットに画像とダウンロードボタンを表示
 
 ## ✨ 特徴
 
-- 🤖 **GPT-4o活用**: 自然な日本語から構造化プロンプト（JSON）への高精度変換
+- 🤖 **GPT-5活用**: 自然な日本語から構造化プロンプト（JSON）への高精度変換
 - 🎯 **キャラクター座標対応**: 1-6キャラクター、A1-E5座標指定可能
 - 🎨 **NovelAI v4.5 Curated**: 最新モデルによる高品質アニメ風イラスト生成
 - 🔧 **拡張プロンプト機能**: 環境変数でメイン・キャラクタープロンプトに共通要素を自動追加
@@ -71,7 +71,7 @@ python main.py
 ```
 NAIPGRA/
 ├── main.py            # メインアプリケーション（Gradio WebUI）
-├── chatGPT.py         # GPT-4oによる構造化プロンプト変換
+├── chatGPT.py         # GPT-5による構造化プロンプト変換
 ├── novelai.py         # NovelAI v4.5 API画像生成（キャラクター座標対応）
 ├── requirements.txt   # 依存パッケージ
 ├── .env               # 環境変数（作成が必要）
@@ -83,7 +83,7 @@ NAIPGRA/
 
 - **フロントエンド**: Gradio WebUI
 - **AI処理**: 
-  - OpenAI GPT-4o (LangChain経由)
+  - OpenAI GPT-5 (LangChain経由)
   - NovelAI v4.5 Curated (novelai-api経由)
 - **画像処理**: PIL (Pillow)
 - **並行処理**: asyncio, aiohttp
