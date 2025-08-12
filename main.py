@@ -81,7 +81,13 @@ class IllustrationChatService:
             tuple: (更新されたチャット履歴, 空文字列, 生成された画像)
         """
         if not user_input.strip():
-            return chat_history, "", None
+            # 空の入力の場合はエラーメッセージを表示
+            chat_history.append({
+                "role": "assistant", 
+                "content": "⚠️ イラストの内容を入力してください。\n\n例: 「猫の女の子が花畑で笑っている」"
+            })
+            yield chat_history, "", None
+            return
 
         # チャット履歴にユーザーの入力を追加
         chat_history.append({"role": "user", "content": user_input})
@@ -132,8 +138,6 @@ class IllustrationChatService:
                         )
                         character_info += f"**キャラクター{i + 1}**{position_text}: {char.get('prompt', '')}\n"
 
-                    save_info = f"\n**保存先:** {saved_path}" if saved_path else ""
-
                     success_message = f"""
 ✅ **イラスト生成完了！**
 
@@ -142,7 +146,7 @@ class IllustrationChatService:
 **背景・環境:**
 {prompt_data.get("prompt", "")}
 
-{character_info}{save_info}
+{character_info}
 
 **生成時刻:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
