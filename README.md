@@ -6,6 +6,8 @@ GradioのWebUIでユーザーが希望するイラストを生成するチャッ
 
 このプロジェクトは、ユーザーの自然な日本語入力を高品質なイラストに変換するWebアプリケーションです。
 
+![NAIPGRA概要画像](docs/image.png)
+
 ### 🔄 生成フロー
 
 1. **ユーザー入力** → ユーザーが希望するイラストの詳細をチャットで入力
@@ -18,6 +20,7 @@ GradioのWebUIでユーザーが希望するイラストを生成するチャッ
 - 🤖 **GPT-4o活用**: 自然な日本語から構造化プロンプト（JSON）への高精度変換
 - 🎯 **キャラクター座標対応**: 1-6キャラクター、A1-E5座標指定可能
 - 🎨 **NovelAI v4.5 Curated**: 最新モデルによる高品質アニメ風イラスト生成
+- 🔧 **拡張プロンプト機能**: 環境変数でメイン・キャラクタープロンプトに共通要素を自動追加
 - 🌐 **美しいWebUI**: 中央揃え・レスポンシブ対応のGradioインターフェース
 - 📥 **ダウンロード機能**: 生成画像の簡単ダウンロード
 - 📱 **リアルタイム**: 処理状況をリアルタイムで表示
@@ -42,6 +45,13 @@ OPENAI_API_KEY=your_openai_api_key_here
 # NovelAI API設定
 NOVELAI_USERNAME=your_novelai_username_here
 NOVELAI_PASSWORD=your_novelai_password_here
+
+# 拡張プロンプト設定（オプション）
+# メインプロンプトに常に追加される内容
+NOVELAI_EXTEND_PROMPT=ultra_detailed, extremely_detailed, photorealistic
+
+# キャラクタープロンプトに常に追加される内容
+NOVELAI_EXTEND_CHARACTER_PROMPT=perfect_face, detailed_eyes, high_quality_skin
 
 # Gradio設定（オプション）
 GRADIO_PORT=7860
@@ -81,7 +91,7 @@ NAIPGRA/
 
 ## 💡 使用例
 
-### 📝 入力例
+### 📝 基本入力例
 ```
 猫の女の子が花畑で笑っている
 ```
@@ -98,6 +108,19 @@ NAIPGRA/
     }
   ]
 }
+```
+
+### 🔧 拡張プロンプト適用例
+**環境変数設定**:
+```env
+NOVELAI_EXTEND_PROMPT=masterpiece, best_quality, ultra_detailed
+NOVELAI_EXTEND_CHARACTER_PROMPT=perfect_face, detailed_eyes
+```
+
+**最終生成プロンプト**:
+```
+メインプロンプト: "masterpiece, best_quality, ultra_detailed, flower_field, outdoor, flowers, nature, sunny"
+キャラクター: "perfect_face, detailed_eyes, 1girl, catgirl, cute, smiling, animal_ears, tail"
 ```
 
 ### 🎨 複数キャラクター例
@@ -121,10 +144,11 @@ NAIPGRA/
 }
 ```
 
-### 📱 出力
+### 📱 出力結果
 - **解像度**: 832x1216の高品質アニメ風イラスト
-- **キャラクター配置**: 指定座標に正確配置
-- **ダウンロード**: ワンクリックで画像保存
+- **キャラクター配置**: A1-E5座標グリッドに正確配置
+- **品質向上**: 拡張プロンプトにより一貫した高品質
+- **ダウンロード**: 生成完了と同時にダウンロードボタン表示
 
 ## ⚙️ 設定
 
@@ -134,6 +158,16 @@ NAIPGRA/
 - **品質**: 高品質設定（steps=28, scale=5.0）
 - **キャラクター座標**: A1-E5グリッド対応（A1=左上、E5=右下、C3=中央）
 - **同時生成**: 最大6キャラクター対応
+
+### 拡張プロンプト機能
+- **NOVELAI_EXTEND_PROMPT**: 全画像のメインプロンプトの先頭に自動追加
+  - 例: `masterpiece, best_quality, ultra_detailed`
+  - 効果: 品質タグが最優先で適用される
+- **NOVELAI_EXTEND_CHARACTER_PROMPT**: 全キャラクタープロンプトの先頭に自動追加
+  - 例: `perfect_face, detailed_eyes, beautiful`
+  - 効果: キャラクターの顔・表情品質が向上
+- **配置**: 先頭配置により最高優先度で画像生成に影響
+- **使用例**: 一貫した品質やスタイルを全生成画像に適用
 
 ## 🔧 トラブルシューティング
 
@@ -154,6 +188,11 @@ NAIPGRA/
 4. **画像生成失敗**
    - NovelAIアカウントクレジット残高を確認
    - ネットワーク接続を確認
+
+5. **拡張プロンプトが適用されない**
+   - `.env`ファイルで`NOVELAI_EXTEND_PROMPT`と`NOVELAI_EXTEND_CHARACTER_PROMPT`を確認
+   - アプリケーション再起動で環境変数を再読込
+   - ログで「拡張プロンプト追加（先頭）」メッセージを確認
 
 ## 📝 ライセンス
 
