@@ -4,7 +4,14 @@ GradioのWebUIでユーザーが希望するイラストを生成するチャッ
 
 ## 📋 概要
 
-このプロジェクトは、ユーザーの自然な日本語入力を高品質なイラストに変換するWebアプリケーションです。
+このプロジェクトは、ユーザーの自然な日本語入力を高品質なアニメイラストに変換するWebアプリケーションです。
+複数のキャラクター(1~6人)と柔軟な設定に対応できます。
+
+## 🔧 更新予定項目
+・NextJSプロジェクトでの再設計予定
+・位置関係をGUI操作に
+・より精度の高いプロンプト構成
+など乞うご期待！
 
 ![NAIPGRA概要画像](docs/image.png)
 
@@ -122,20 +129,20 @@ NOVELAI_EXTEND_CHARACTER_PROMPT=perfect_face, detailed_eyes
 
 ### 🎨 複数キャラクター例
 ```
-入力: ぐらちゃんとるしあちゃんが一緒にいる
+入力: オレンジ髪の魔法使いが火の魔法を練習している、それを褒めている牧師様
 ```
 ```json
 {
   "characterCount": 2,
-  "prompt": "2girls, indoors, virtual_youtuber, hololive, best_quality, masterpiece",
+  "prompt": "magic_academy, training_ground, fire_magic, spell_practice, indoors, best_quality, masterpiece",
   "characterPrompts": [
     {
-      "prompt": "gawr_gura, shark_tail, hoodie, blue_eyes, smiling, full_body",
-      "position": "B2"
+      "prompt": "1girl, orange_hair, hime_cut, wizard_hat, robe, casting_spell, fireball, focused_expression, full_body",
+      "position": "B3"
     },
     {
-      "prompt": "uruha_rushia, green_hair, twintails, red_eyes, gothic_lolita, full_body, looking_at_viewer",
-      "position": "D2"
+      "prompt": "1boy, priest, short_hair, smiling, clapping_hands, upper_body",
+      "position": "D3"
     }
   ]
 }
