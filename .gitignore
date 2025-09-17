@@ -3,3 +3,4 @@ venv
 .gradio/certificate.pem
 __pycache__/
 outputs/
+要件定義書.txt
