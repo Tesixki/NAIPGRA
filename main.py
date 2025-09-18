@@ -36,6 +36,10 @@ class IllustrationChatService:
             print(f"✗ NovelAI初期化エラー: {e}")
             self.novelai = None
 
+        # 最後に生成したプロンプト情報を保存
+        self.last_prompt_data = None
+        self.last_user_input = None
+
         print("サービス初期化完了")
 
     def save_generated_image(self, image_data: bytes) -> str:
@@ -125,6 +129,10 @@ class IllustrationChatService:
                 image_data = self.novelai.generate_image(prompt_data)
 
                 if image_data:
+                    # 成功した場合、最後のプロンプト情報を保存
+                    self.last_prompt_data = prompt_data
+                    self.last_user_input = user_input
+
                     # PIL Imageに変換
                     image = self.novelai.image_to_pil(image_data)
 
@@ -170,6 +178,93 @@ class IllustrationChatService:
             error_message = f"❌ エラーが発生しました: {str(e)}"
             chat_history[-1]["content"] = error_message
             yield chat_history, "", None
+
+    def regenerate_image(self, chat_history: list):
+        """
+        最後のプロンプトで画像を再生成（GPT-5を経由せず）
+
+        Args:
+            chat_history (list): チャット履歴
+
+        Returns:
+            tuple: (更新されたチャット履歴, 生成された画像)
+        """
+        if not self.last_prompt_data:
+            # 再生成可能なプロンプトがない場合
+            chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": "⚠️ 再生成できるプロンプトがありません。まず新しいイラストを生成してください。",
+                }
+            )
+            yield chat_history, None
+            return
+
+        if not self.novelai:
+            # NovelAI APIが利用できない場合
+            chat_history.append(
+                {"role": "assistant", "content": "❌ NovelAI APIが利用できません。"}
+            )
+            yield chat_history, None
+            return
+
+        try:
+            # ステータスメッセージを表示
+            status_message = (
+                f"🔄 同じ条件で再生成中...\n\n**元の入力:** {self.last_user_input}"
+            )
+            chat_history.append({"role": "assistant", "content": status_message})
+            yield chat_history, None
+
+            # NovelAIで再生成（seedは自動的に異なる値になる）
+            image_data = self.novelai.generate_image(self.last_prompt_data)
+
+            if image_data:
+                # PIL Imageに変換
+                image = self.novelai.image_to_pil(image_data)
+
+                # outputsディレクトリに画像を保存
+                self.save_generated_image(image_data)
+
+                # 成功メッセージ
+                character_info = ""
+                for i, char in enumerate(
+                    self.last_prompt_data.get("characterPrompts", [])
+                ):
+                    position = char.get("position")
+                    position_text = (
+                        f" (位置: {position})" if position else " (位置指定なし)"
+                    )
+                    character_info += f"**キャラクター{i + 1}**{position_text}: {char.get('prompt', '')}\n"
+
+                success_message = f"""
+✅ **再生成完了！** (GPT-5処理をスキップ)
+
+**元の入力:** {self.last_user_input}
+
+**キャラクター数:** {self.last_prompt_data.get("characterCount", 1)}
+
+**背景・環境:**
+{self.last_prompt_data.get("prompt", "")}
+
+{character_info}
+
+**生成時刻:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+                chat_history[-1]["content"] = success_message
+                yield chat_history, image
+
+            else:
+                error_message = (
+                    "❌ 再生成に失敗しました。APIキーや設定を確認してください。"
+                )
+                chat_history[-1]["content"] = error_message
+                yield chat_history, None
+
+        except Exception as e:
+            error_message = f"❌ 再生成エラーが発生しました: {str(e)}"
+            chat_history[-1]["content"] = error_message
+            yield chat_history, None
 
 
 def create_gradio_interface():
@@ -251,6 +346,9 @@ def create_gradio_interface():
                             scale=4,
                         )
                         submit_btn = gr.Button("生成", variant="primary", scale=1)
+                        regenerate_btn = gr.Button(
+                            "🔄 再生成", variant="secondary", scale=1
+                        )
 
                     gr.Examples(
                         examples=[
@@ -276,6 +374,10 @@ def create_gradio_interface():
         # イベントハンドラー
         def submit_and_generate(user_input, chat_history):
             for result in service.process_user_request(user_input, chat_history):
+                yield result
+
+        def regenerate_and_update(chat_history):
+            for result in service.regenerate_image(chat_history):
                 yield result
 
         def clear_chat():
@@ -316,6 +418,12 @@ def create_gradio_interface():
             submit_and_generate,
             inputs=[user_input, chatbot],
             outputs=[chatbot, user_input, generated_image],
+        ).then(on_image_change, inputs=[generated_image], outputs=[download_btn])
+
+        regenerate_btn.click(
+            regenerate_and_update,
+            inputs=[chatbot],
+            outputs=[chatbot, generated_image],
         ).then(on_image_change, inputs=[generated_image], outputs=[download_btn])
 
         clear_btn.click(clear_chat, inputs=[], outputs=[chatbot, user_input]).then(
