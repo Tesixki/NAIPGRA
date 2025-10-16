@@ -1,5 +1,7 @@
 # 🎨 NAIPGRA (ないぴぐら) - チャット形式イラスト生成
 
+[![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Try%20on%20HuggingFace%20Spaces-blue?logo=huggingface&labelColor=yellow)](https://huggingface.co/spaces/rurukikiki/NAIPGRA)
+
 GradioのWebUIでユーザーが希望するイラストを生成するチャットサービスです。
 
 ## 📋 概要
