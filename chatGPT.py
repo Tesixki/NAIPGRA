@@ -20,7 +20,7 @@ class ChatGPTProcessor:
         
         self.llm = ChatOpenAI(
             api_key=self.api_key,
-            model="gpt-4o",
+            model="gpt-5",
             temperature=0.7
         )
     
@@ -85,7 +85,7 @@ class ChatGPTProcessor:
         
         try:
             print("ChatGPT API呼び出し中...")
-            response = self.llm(messages)
+            response = self.llm.invoke(messages)
             print(f"ChatGPT返答:\n{response.content}")
             
             # JSONパース
